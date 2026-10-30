@@ -129,4 +129,22 @@ public class MonitorsController : ControllerBase
             new { id = monitor.Id },
             response);
     }
+
+    // DELETE: api/monitors/{id}
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteMonitor(int id)
+    {
+        var monitor = await _context.Monitors.FindAsync(id);
+
+        if (monitor == null)
+        {
+            return NotFound(new { message = "Monitor not found." });
+        }
+
+        _context.Monitors.Remove(monitor);
+
+        await _context.SaveChangesAsync();
+
+        return NoContent();
+    }
 }
