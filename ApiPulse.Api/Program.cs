@@ -1,4 +1,5 @@
 using ApiPulse.Api.Data;
+using ApiPulse.Api.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,6 +10,16 @@ var connectionString = builder.Configuration
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(connectionString));
+
+// Register HTTP client support with a 15-second timeout.
+builder.Services
+    .AddHttpClient("MonitorClient", client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(15);
+    });
+
+// Register the background monitoring service.
+builder.Services.AddHostedService<MonitorBackgroundService>();
 
 // Register API services.
 builder.Services.AddControllers();
