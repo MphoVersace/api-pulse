@@ -1,6 +1,6 @@
+
 using ApiPulse.Api.Data;
 using ApiPulse.Api.DTOs;
-using ApiPulse.Api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -65,12 +65,43 @@ public class MonitorsController : ControllerBase
         return Ok(monitor);
     }
 
+    // GET: api/monitors/{id}/history
+    [HttpGet("{id}/history")]
+    public async Task<ActionResult<IEnumerable<MonitorHistoryResponseDto>>>
+        GetMonitorHistory(int id)
+    {
+        var monitorExists = await _context.Monitors
+            .AnyAsync(m => m.Id == id);
+
+        if (!monitorExists)
+        {
+            return NotFound(new { message = "Monitor not found." });
+        }
+
+        var history = await _context.MonitorHistories
+            .AsNoTracking()
+            .Where(h => h.MonitorId == id)
+            .OrderByDescending(h => h.CheckedAt)
+            .Select(h => new MonitorHistoryResponseDto
+            {
+                Id = h.Id,
+                MonitorId = h.MonitorId,
+                CheckedAt = h.CheckedAt,
+                IsSuccessful = h.IsSuccessful,
+                ResponseTimeMs = h.ResponseTimeMs,
+                ErrorMessage = h.ErrorMessage
+            })
+            .ToListAsync();
+
+        return Ok(history);
+    }
+
     // POST: api/monitors
     [HttpPost]
     public async Task<ActionResult<MonitorResponseDto>> CreateMonitor(
         CreateMonitorDto request)
     {
-        var monitor = new Monitor
+        var monitor = new ApiPulse.Api.Models.Monitor
         {
             Name = request.Name.Trim(),
             Url = request.Url.Trim(),
