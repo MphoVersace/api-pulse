@@ -96,6 +96,66 @@ public class MonitorsController : ControllerBase
         return Ok(history);
     }
 
+    // GET: api/monitors/{id}/analytics
+    [HttpGet("{id}/analytics")]
+    public async Task<ActionResult<MonitorAnalyticsResponseDto>>
+        GetMonitorAnalytics(int id)
+    {
+        var monitor = await _context.Monitors
+            .AsNoTracking()
+            .FirstOrDefaultAsync(m => m.Id == id);
+
+        if (monitor == null)
+        {
+            return NotFound(new { message = "Monitor not found." });
+        }
+
+        var history = await _context.MonitorHistories
+            .AsNoTracking()
+            .Where(h => h.MonitorId == id)
+            .Select(h => new
+            {
+                h.IsSuccessful,
+                h.ResponseTimeMs
+            })
+            .ToListAsync();
+
+        var totalChecks = history.Count;
+        var successfulChecks = history.Count(h => h.IsSuccessful);
+        var failedChecks = totalChecks - successfulChecks;
+
+        var uptimePercentage = totalChecks == 0
+            ? 0
+            : (double)successfulChecks / totalChecks * 100;
+
+        var downtimePercentage = totalChecks == 0
+            ? 0
+            : (double)failedChecks / totalChecks * 100;
+
+        var responseTimes = history
+            .Where(h => h.ResponseTimeMs.HasValue)
+            .Select(h => h.ResponseTimeMs!.Value)
+            .ToList();
+
+        var averageResponseTime = responseTimes.Count == 0
+            ? 0
+            : responseTimes.Average();
+
+        var analytics = new MonitorAnalyticsResponseDto
+        {
+            MonitorId = monitor.Id,
+            MonitorName = monitor.Name,
+            UptimePercentage = Math.Round(uptimePercentage, 2),
+            DowntimePercentage = Math.Round(downtimePercentage, 2),
+            AverageResponseTimeMs = Math.Round(averageResponseTime, 2),
+            TotalChecks = totalChecks,
+            SuccessfulChecks = successfulChecks,
+            FailedChecks = failedChecks
+        };
+
+        return Ok(analytics);
+    }
+
     // POST: api/monitors
     [HttpPost]
     public async Task<ActionResult<MonitorResponseDto>> CreateMonitor(
