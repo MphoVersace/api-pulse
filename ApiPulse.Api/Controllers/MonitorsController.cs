@@ -323,6 +323,74 @@ public class MonitorsController : ControllerBase
         return Ok(response);
     }
 
+    // PATCH: api/monitors/{id}/deactivate
+    [HttpPatch("{id}/deactivate")]
+    public async Task<ActionResult<MonitorResponseDto>> DeactivateMonitor(int id)
+    {
+        var monitor = await _context.Monitors.FindAsync(id);
+
+        if (monitor == null)
+        {
+            return NotFound(new { message = "Monitor not found." });
+        }
+
+        if (!monitor.IsActive)
+        {
+            return BadRequest(new { message = "Monitor is already deactivated." });
+        }
+
+        monitor.IsActive = false;
+
+        await _context.SaveChangesAsync();
+
+        var response = new MonitorResponseDto
+        {
+            Id = monitor.Id,
+            Name = monitor.Name,
+            Url = monitor.Url,
+            IsActive = monitor.IsActive,
+            CreatedAt = monitor.CreatedAt,
+            LastCheckedAt = monitor.LastCheckedAt,
+            Status = monitor.Status
+        };
+
+        return Ok(response);
+    }
+
+    // PATCH: api/monitors/{id}/activate
+    [HttpPatch("{id}/activate")]
+    public async Task<ActionResult<MonitorResponseDto>> ActivateMonitor(int id)
+    {
+        var monitor = await _context.Monitors.FindAsync(id);
+
+        if (monitor == null)
+        {
+            return NotFound(new { message = "Monitor not found." });
+        }
+
+        if (monitor.IsActive)
+        {
+            return BadRequest(new { message = "Monitor is already active." });
+        }
+
+        monitor.IsActive = true;
+
+        await _context.SaveChangesAsync();
+
+        var response = new MonitorResponseDto
+        {
+            Id = monitor.Id,
+            Name = monitor.Name,
+            Url = monitor.Url,
+            IsActive = monitor.IsActive,
+            CreatedAt = monitor.CreatedAt,
+            LastCheckedAt = monitor.LastCheckedAt,
+            Status = monitor.Status
+        };
+
+        return Ok(response);
+    }
+
     // DELETE: api/monitors/{id}
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteMonitor(int id)
