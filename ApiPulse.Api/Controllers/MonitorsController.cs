@@ -156,6 +156,105 @@ public class MonitorsController : ControllerBase
         return Ok(analytics);
     }
 
+    // GET: api/monitors/{id}/performance
+    [HttpGet("{id}/performance")]
+    public async Task<ActionResult<IEnumerable<MonitorPerformancePointDto>>>
+        GetMonitorPerformance(
+            int id,
+            [FromQuery] DateOnly? startDate,
+            [FromQuery] DateOnly? endDate)
+    {
+        if (startDate == null || endDate == null)
+        {
+            return BadRequest(new
+            {
+                message = "Both startDate and endDate are required."
+            });
+        }
+
+        if (endDate < startDate)
+        {
+            return BadRequest(new
+            {
+                message = "endDate cannot be earlier than startDate."
+            });
+        }
+
+        var monitorExists = await _context.Monitors
+            .AnyAsync(m => m.Id == id);
+
+        if (!monitorExists)
+        {
+            return NotFound(new { message = "Monitor not found." });
+        }
+
+        var startDateTime = DateTime.SpecifyKind(
+            startDate.Value.ToDateTime(TimeOnly.MinValue),
+            DateTimeKind.Utc);
+
+        var endDateTime = DateTime.SpecifyKind(
+            endDate.Value.AddDays(1).ToDateTime(TimeOnly.MinValue),
+            DateTimeKind.Utc);
+
+        var useHourlyGrouping =
+            (endDateTime - startDateTime).TotalHours <= 48;
+
+        var history = await _context.MonitorHistories
+            .AsNoTracking()
+            .Where(h =>
+                h.MonitorId == id &&
+                h.CheckedAt >= startDateTime &&
+                h.CheckedAt < endDateTime)
+            .Select(h => new
+            {
+                h.CheckedAt,
+                h.IsSuccessful,
+                h.ResponseTimeMs
+            })
+            .ToListAsync();
+
+        var performance = history
+            .GroupBy(h => useHourlyGrouping
+                ? new DateTime(
+                    h.CheckedAt.Year,
+                    h.CheckedAt.Month,
+                    h.CheckedAt.Day,
+                    h.CheckedAt.Hour,
+                    0,
+                    0,
+                    DateTimeKind.Utc)
+                : new DateTime(
+                    h.CheckedAt.Year,
+                    h.CheckedAt.Month,
+                    h.CheckedAt.Day,
+                    0,
+                    0,
+                    0,
+                    DateTimeKind.Utc))
+            .OrderBy(group => group.Key)
+            .Select(group =>
+            {
+                var responseTimes = group
+                    .Where(h => h.ResponseTimeMs.HasValue)
+                    .Select(h => h.ResponseTimeMs!.Value)
+                    .ToList();
+
+                return new MonitorPerformancePointDto
+                {
+                    TimeBucket = group.Key,
+                    AverageResponseTimeMs = responseTimes.Count == 0
+                        ? 0
+                        : Math.Round(responseTimes.Average(), 2),
+                    TotalChecks = group.Count(),
+                    SuccessfulChecks = group.Count(h => h.IsSuccessful),
+                    FailedChecks = group.Count(h => !h.IsSuccessful)
+                };
+            })
+            .ToList();
+
+        return Ok(performance);
+    }
+
     // POST: api/monitors
     [HttpPost]
     public async Task<ActionResult<MonitorResponseDto>> CreateMonitor(
