@@ -289,6 +289,40 @@ public class MonitorsController : ControllerBase
             response);
     }
 
+    // PUT: api/monitors/{id}
+    [HttpPut("{id}")]
+    public async Task<ActionResult<MonitorResponseDto>> UpdateMonitor(
+        int id,
+        UpdateMonitorDto request)
+    {
+        var monitor = await _context.Monitors.FindAsync(id);
+
+        if (monitor == null)
+        {
+            return NotFound(new { message = "Monitor not found." });
+        }
+
+        // Update only the monitor's name and URL.
+        // Preserve its status, activation state, and monitoring history.
+        monitor.Name = request.Name.Trim();
+        monitor.Url = request.Url.Trim();
+
+        await _context.SaveChangesAsync();
+
+        var response = new MonitorResponseDto
+        {
+            Id = monitor.Id,
+            Name = monitor.Name,
+            Url = monitor.Url,
+            IsActive = monitor.IsActive,
+            CreatedAt = monitor.CreatedAt,
+            LastCheckedAt = monitor.LastCheckedAt,
+            Status = monitor.Status
+        };
+
+        return Ok(response);
+    }
+
     // DELETE: api/monitors/{id}
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteMonitor(int id)
