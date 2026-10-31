@@ -16,13 +16,47 @@ public class MonitorsController : ControllerBase
     {
         _context = context;
     }
-
     // GET: api/monitors
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<MonitorResponseDto>>> GetMonitors()
+    public async Task<ActionResult<IEnumerable<MonitorResponseDto>>> GetMonitors(
+        [FromQuery] string? status,
+        [FromQuery] bool? isActive)
     {
-        var monitors = await _context.Monitors
+        var query = _context.Monitors
             .AsNoTracking()
+            .AsQueryable();
+
+        // Filter monitors by health status.
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            var normalizedStatus = status.Trim();
+
+            var allowedStatuses = new[] { "Up", "Down", "Unknown" };
+
+            if (!allowedStatuses.Contains(
+                normalizedStatus,
+                StringComparer.OrdinalIgnoreCase))
+            {
+                return BadRequest(new
+                {
+                    message = "Invalid status. Allowed values are Up, Down, and Unknown."
+                });
+            }
+
+            var statusFilter = normalizedStatus.ToLower();
+
+            query = query.Where(monitor =>
+                monitor.Status.ToLower() == statusFilter);
+        }
+
+        // Filter monitors by active or inactive state.
+        if (isActive.HasValue)
+        {
+            query = query.Where(monitor =>
+                monitor.IsActive == isActive.Value);
+        }
+
+        var monitors = await query
             .Select(monitor => new MonitorResponseDto
             {
                 Id = monitor.Id,
@@ -37,6 +71,7 @@ public class MonitorsController : ControllerBase
 
         return Ok(monitors);
     }
+
 
     // GET: api/monitors/{id}
     [HttpGet("{id}")]
