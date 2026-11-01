@@ -40,3 +40,6 @@ app.UseHttpsRedirection();
 app.MapControllers();
 
 app.Run();
+
+// Expose Program so WebApplicationFactory can access the application.
+public partial class Program { }
