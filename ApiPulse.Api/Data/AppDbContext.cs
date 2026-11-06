@@ -1,16 +1,26 @@
+
 using ApiPulse.Api.Models;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+
+using MonitorEntity = ApiPulse.Api.Models.Monitor;
 
 namespace ApiPulse.Api.Data;
 
-public class AppDbContext : DbContext
+/// <summary>
+/// Database context for API Pulse.
+/// Manages Identity users alongside monitoring data.
+/// </summary>
+public class AppDbContext : IdentityDbContext<ApplicationUser>
 {
     public AppDbContext(DbContextOptions<AppDbContext> options)
         : base(options)
     {
     }
 
-    public DbSet<ApiPulse.Api.Models.Monitor> Monitors => Set<ApiPulse.Api.Models.Monitor>();
+    // Stores website monitoring configurations.
+    public DbSet<MonitorEntity> Monitors => Set<MonitorEntity>();
 
+    // Stores historical website monitoring results.
     public DbSet<MonitorHistory> MonitorHistories => Set<MonitorHistory>();
 }
